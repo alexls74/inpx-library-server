@@ -1730,6 +1730,7 @@ button {
   align-items: center;
   justify-content: center;
   padding: 9px 18px;
+  font-family: inherit;
   font-size: 13.5px;
   font-weight: 600;
   letter-spacing: 0.01em;
