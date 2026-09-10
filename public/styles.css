@@ -3983,6 +3983,19 @@ body:has(.bottom-nav) .batch-fab {
   margin-top: 10px;
 }
 
+/* Кнопка «Скачать» — это <summary> внутри <details class="download-menu">,
+   а не прямой flex-элемент .actions. Сам <details> растягивается по высоте
+   соседних кнопок, а summary внутри — нет, поэтому на крупном шрифте её
+   текст уезжал вверх относительно «Читать» и «На email». */
+.actions .download-menu {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.actions .download-menu > .download-menu-trigger {
+  width: 100%;
+}
+
 .actions-secondary {
   display: none;
 }
