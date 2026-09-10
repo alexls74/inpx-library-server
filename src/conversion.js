@@ -179,8 +179,11 @@ function getFormatMimeType(format) {
   return MIME_TYPES[format] || 'application/octet-stream';
 }
 
-function getBookFormatFileName(book, format) {
-  return `${buildDownloadBaseName(book)}.${getFormatExtension(format)}`;
+function getBookFormatFileName(book, format, filenameStyle) {
+  const baseName = filenameStyle
+    ? buildDownloadBaseName(book, filenameStyle)
+    : buildDownloadBaseName(book);
+  return `${baseName}.${getFormatExtension(format)}`;
 }
 
 function ensureDir(dirPath) {
@@ -358,13 +361,15 @@ export {
 
 export async function resolveDownload(book, requestedFormat, options = {}) {
   const skipFb2DeliveryProcessing = options?.skipFb2DeliveryProcessing === true;
+  // Необязательный override стиля имени файла (email всегда шлёт 'title').
+  const filenameStyle = options?.filenameStyle || null;
   const sourceFormat = String(book?.ext || 'fb2').toLowerCase();
   const format = normalizeDownloadFormat(book, requestedFormat);
   if (format === sourceFormat && sourceFormat !== 'fb2') {
     const content = await readBookBufferForDelivery(book);
     return {
       format,
-      fileName: getBookFormatFileName(book, sourceFormat),
+      fileName: getBookFormatFileName(book, sourceFormat, filenameStyle),
       mimeType: getFormatMimeType(sourceFormat),
       content
     };
@@ -375,7 +380,7 @@ export async function resolveDownload(book, requestedFormat, options = {}) {
       : await readBookBufferForDelivery(book);
     return {
       format,
-      fileName: getBookFormatFileName(book, 'fb2'),
+      fileName: getBookFormatFileName(book, 'fb2', filenameStyle),
       mimeType: getFormatMimeType('fb2'),
       content
     };
@@ -388,7 +393,7 @@ export async function resolveDownload(book, requestedFormat, options = {}) {
   const filePath = await convertFb2Book(book, format);
   return {
     format,
-    fileName: getBookFormatFileName(book, format),
+    fileName: getBookFormatFileName(book, format, filenameStyle),
     mimeType: getFormatMimeType(format),
     filePath
   };
