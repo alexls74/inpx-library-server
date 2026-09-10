@@ -153,7 +153,7 @@ function renderHeroSlideInnerHtml(book, { eager = false, heading = 'h1', showKic
       <p class="hero-card-annotation" data-hero-annotation hidden></p>
       ${progressHtml}
       <div class="hero-card-actions">
-        <a class="button button-primary hero-read-btn" href="${readPagePath(book.id)}">${escapeHtml(uiT('home.heroReadBook'))}</a>
+        ${isPageReadAllowed() ? `<a class="button button-primary hero-read-btn" href="${readPagePath(book.id)}">${escapeHtml(uiT('home.heroReadBook'))}</a>` : ''}
         <a class="button button-secondary hero-about-btn" href="${bookPagePath(book.id)}">${escapeHtml(uiT('home.heroAboutBook'))}</a>
       </div>
     </div>`;
@@ -3255,6 +3255,11 @@ function isPageDownloadAllowed() {
   return document.body?.dataset?.downloadAllowed === '1';
 }
 
+function isPageReadAllowed() {
+  if (typeof document === 'undefined') return true;
+  return document.body?.dataset?.readAllowed !== '0';
+}
+
 function isPageEmailSendAllowed() {
   if (typeof document === 'undefined') return false;
   // SSR rows / batch email toolbar prove the current user may send by email.
@@ -3402,7 +3407,7 @@ function renderCardHtml(book, { batchSelect = false, seriesContext = null, readA
       ${showSeries ? `<div class="card-series">${uiRenderSeriesLinks(book.seriesList, `ajax-s-${book.id}`, authorKey)}</div>` : ''}
       ${book.readProgress > 0 ? `<div class="card-read-progress"><div class="read-progress-bar" role="progressbar" aria-valuenow="${Math.round(book.readProgress)}" aria-valuemin="0" aria-valuemax="100"><div class="read-progress-fill" style="width:${Math.round(book.readProgress)}%"></div></div><span class="read-progress-label">${Math.round(book.readProgress)}%</span></div>` : ''}
       ${readActions
-        ? `<div class="card-actions card-actions-read"><a class="button button-primary download-menu-trigger-compact" href="${readPagePath(book.id)}">${escapeHtml(uiT('home.heroReadBook'))}</a><a class="button button-secondary download-menu-trigger-compact" href="${bookPagePath(book.id)}">${escapeHtml(uiT('home.heroAboutBook'))}</a></div>`
+        ? `<div class="card-actions card-actions-read">${isPageReadAllowed() ? `<a class="button button-primary download-menu-trigger-compact" href="${readPagePath(book.id)}">${escapeHtml(uiT('home.heroReadBook'))}</a>` : ''}<a class="button button-secondary download-menu-trigger-compact" href="${bookPagePath(book.id)}">${escapeHtml(uiT('home.heroAboutBook'))}</a></div>`
         : downloadMenu ? `<div class="card-actions">${downloadMenu}</div>` : ''}
     </div>
   </article>`;
@@ -3441,7 +3446,9 @@ function renderListRowHtml(book, { batchSelect = false } = {}) {
   const bookRefAttr = bookIdNeedsSafeUrl(book.id)
     ? `data-book-id-ref="${escapeHtml(cardRef)}"`
     : `data-book-id-ref="${escapeHtml(cardRef)}" data-book-id="${id}"`;
-  const readBtn = `<a class="button author-flibusta-read" href="${readPagePath(book.id)}" target="_blank" rel="noopener noreferrer">${escapeHtml(uiT('book.read'))}</a>`;
+  const readBtn = isPageReadAllowed()
+    ? `<a class="button author-flibusta-read" href="${readPagePath(book.id)}" target="_blank" rel="noopener noreferrer">${escapeHtml(uiT('book.read'))}</a>`
+    : '';
   const emailBtn = isPageEmailSendAllowed()
     ? `<button class="button author-flibusta-email" type="button" ${bookRefAttr} data-send-to-ereader="1">${escapeHtml(uiT('book.toEmail'))}</button>`
     : '';

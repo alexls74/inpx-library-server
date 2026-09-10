@@ -13,7 +13,7 @@ import {
   renderSectionIntro, renderFacetHero, renderAlert, renderAccountNav, renderAppPairWidget,
   renderListRemoveBtn, bookIdDataAttr, bookCardDataAttrs, batchBookIdDataAttr,
   firstAuthorValue, uniqueBooksById, batchSelectInputAttrs, safeDomIdPart,
-  browseTotalLine, canDownloadInUi, canSendToEmailInUi, renderAuthorLinks, renderSeriesLinks, renderWelcomeQuoteAuthor,
+  browseTotalLine, canDownloadInUi, canSendToEmailInUi, canReadInUi, renderAuthorLinks, renderSeriesLinks, renderWelcomeQuoteAuthor,
   STATIC_ASSET_VERSION, siteTitleForDisplay, READ_CHECK_SVG, renderFaviconLinks,
   bookPagePath, readPagePath, apiBookPath, liteBookPagePath, liteReadPagePath,
   t, tp, getLocale, plural, countLabel, formatLocaleInt,
@@ -25,7 +25,6 @@ import { pickHomeWelcomeQuote } from '../home-welcome-quotes.js';
 
 export function renderHome({ user, stats, indexStatus, history = [], favoriteAuthors = [], favoriteSeries = [], sections = {}, recommendations = [], homeSubtitle = '', csrfToken = '', readBookIds = null, hasContinueData = false, listView = false }) {
   const isAuthenticated = Boolean(user);
-  const loginHint = tp('home.loginHint', { login: `<a href="/login">${escapeHtml(t('nav.login'))}</a>` });
   const quoteInviting = !isAuthenticated;
   const welcomeQuote = pickHomeWelcomeQuote(getLocale(), { inviting: quoteInviting });
   const subtitleText = homeSubtitle === '-' ? '' : (homeSubtitle || t('home.subtitle'));
@@ -50,7 +49,6 @@ export function renderHome({ user, stats, indexStatus, history = [], favoriteAut
         <cite class="welcome-hero-author">${renderWelcomeQuoteAuthor(welcomeQuote.author)}</cite>
       </div>
     </section>
-    ${!isAuthenticated ? `<div class="home-inline-note">${loginHint}</div>` : ''}
     ${renderHomeShelf({ title: t('home.shelfNew'), href: '/library/recent', items: sections.newest || [], type: 'books', isAuthenticated, showBatch: false, user, readBookIds, listView })}
     ${continueShelf}
     `;
@@ -717,7 +715,7 @@ export function renderBook({
               : ''
           }
           <div class="actions actions-primary">
-            <a href="${readPagePath(book.id)}" class="button" target="_blank" rel="noopener noreferrer">${escapeHtml(t('book.read'))}</a>
+            ${canReadInUi(user) ? `<a href="${readPagePath(book.id)}" class="button" target="_blank" rel="noopener noreferrer">${escapeHtml(t('book.read'))}</a>` : ''}
             ${renderDownloadMenu(book, { accent: true, user })}
             ${isAuthenticated && canSendToEmailInUi(user) ? `<button class="button" type="button" ${bookIdDataAttr(book.id)} data-send-to-ereader="1">${escapeHtml(t('book.toEmail'))}</button>` : ''}
           </div>

@@ -228,6 +228,11 @@ export function canSendToEmailInUi(user) {
   return Boolean(user?.username) && user.ereaderEmailAllowed !== false;
 }
 
+/** Кнопка «Читать» показывается только авторизованным (гостям — скрыта). */
+export function canReadInUi(user) {
+  return Boolean(user?.username);
+}
+
 /** Удаляет символы, запрещённые в XML 1.0 (кроме tab/LF/CR). */
 function stripXmlInvalidControls(value) {
   return String(value ?? '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
@@ -1063,7 +1068,9 @@ function renderAuthorFlibustaBookRow(book, {
   const batchCb = batchSelect
     ? `<label class="author-flibusta-batch" title="${escapeHtml(t('batch.selectTitle'))}"><input type="checkbox" class="batch-select-cb" ${batchSelectInputAttrs(book.id)} ${batchBookIdDataAttr(book.id)} aria-label="${escapeHtml(t('batch.selectAria'))}"></label>`
     : '';
-  const readBtn = `<a class="button author-flibusta-read" href="${readPagePath(book.id)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t('book.read'))}</a>`;
+  const readBtn = canReadInUi(user)
+    ? `<a class="button author-flibusta-read" href="${readPagePath(book.id)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t('book.read'))}</a>`
+    : '';
   const dl = canDownloadInUi(user)
     ? `<span class="author-flibusta-dl">${renderDownloadMenu(book, { compact: true, user })}</span>`
     : '';
@@ -1521,7 +1528,7 @@ export function pageShell({ title, content, user, query = '', field = 'all', sta
     @keyframes nav-grow{0%{width:0}15%{width:35%}40%{width:65%}65%{width:82%}100%{width:97%}}
   </style>
 </head>
-<body data-download-allowed="${canDownloadInUi(user) ? '1' : '0'}" data-batch-zip-max="${BATCH_ZIP_MAX}">
+<body data-download-allowed="${canDownloadInUi(user) ? '1' : '0'}" data-read-allowed="${canReadInUi(user) ? '1' : '0'}" data-batch-zip-max="${BATCH_ZIP_MAX}">
   <div class="nav-progress" id="nav-progress"></div>
   <script>!function(){var b=document.getElementById('nav-progress');if(!b)return;function done(){b.classList.remove('active')}done();window.addEventListener('pageshow',done);window.addEventListener('popstate',done);document.addEventListener('click',function(e){var a=e.target.closest('a[href]');if(!a)return;var h=a.getAttribute('href');if(!h||h.charAt(0)==='#'||a.target==='_blank'||e.ctrlKey||e.metaKey||e.shiftKey)return;b.classList.add('active')});document.addEventListener('submit',function(){b.classList.add('active')})}()</script>
   <script type="application/json" id="ui-i18n-json">${serializeClientI18n()}</script>
