@@ -3455,22 +3455,8 @@ function renderCardHtml(book, { batchSelect = false, seriesContext = null, readA
         return `<a href="/facet/series/${encodeURIComponent(s.name)}${seriesAuthorParam}">${dn}${no}</a>`;
       }).join(', ')
     : '';
-  const sourceFormat = String(book.ext || 'fb2').toLowerCase();
-  const formats =
-    Array.isArray(book.downloadFormats) && book.downloadFormats.length
-      ? book.downloadFormats.map((x) => [x.format, x.label])
-      : sourceFormat === 'fb2'
-        ? [['fb2', 'FB2'], ['epub2', 'EPUB']]
-        : [[sourceFormat, sourceFormat.toUpperCase()]];
-  const downloadMenu =
-    isPageDownloadAllowed() && formats.length
-      ? formats.length === 1
-        ? `<a class="button download-menu-trigger download-menu-trigger-compact download-direct-link" href="${downloadBookPath(book.id, `format=${encodeURIComponent(formats[0][0])}`)}">${escapeHtml(uiT('download.label'))}</a>`
-        : `<details class="download-menu download-menu-compact">
-      <summary class="button download-menu-trigger download-menu-trigger-compact">${escapeHtml(uiT('download.label'))}</summary>
-      <div class="download-menu-popover">${formats.map(([f, l]) => `<a class="download-format-link" href="${downloadBookPath(book.id, `format=${encodeURIComponent(f)}`)}">${escapeHtml(l)}</a>`).join('')}</div>
-    </details>`
-      : '';
+  // Кнопки «Скачать» на карточках списка больше нет: у книг внизу страницы
+  // список форматов обрезался краем окна. Все действия — на странице книги.
   const batchCb = batchSelect
     ? `<label class="batch-select-hit" title="${escapeHtml(uiT('batch.selectTitle'))}"><input type="checkbox" class="batch-select-cb" id="batch-select-${safeDomIdPart(book.id)}" name="batch-select-${safeDomIdPart(book.id)}" ${bookIdNeedsSafeUrl(book.id) ? `data-batch-book-id-ref="${escapeHtml(encodeBookRef(book.id))}"` : `data-batch-book-id="${id}"`} aria-label="${escapeHtml(uiT('batch.selectAria'))}"></label>`
     : '';
@@ -3500,7 +3486,7 @@ function renderCardHtml(book, { batchSelect = false, seriesContext = null, readA
       ${book.readProgress > 0 ? `<div class="card-read-progress"><div class="read-progress-bar" role="progressbar" aria-valuenow="${Math.round(book.readProgress)}" aria-valuemin="0" aria-valuemax="100"><div class="read-progress-fill" style="width:${Math.round(book.readProgress)}%"></div></div><span class="read-progress-label">${Math.round(book.readProgress)}%</span></div>` : ''}
       ${readActions
         ? `<div class="card-actions card-actions-read">${isPageReadAllowed() ? `<a class="button button-primary download-menu-trigger-compact" href="${readPagePath(book.id)}">${escapeHtml(uiT('home.heroReadBook'))}</a>` : ''}<a class="button button-secondary download-menu-trigger-compact" href="${bookPagePath(book.id)}">${escapeHtml(uiT('home.heroAboutBook'))}</a></div>`
-        : downloadMenu ? `<div class="card-actions">${downloadMenu}</div>` : ''}
+        : ''}
     </div>
   </article>`;
 }

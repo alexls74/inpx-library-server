@@ -9679,6 +9679,12 @@ html[data-ui-typography="1"] .shell :is(.muted, .admin-field-hint, .admin-card-s
   font-size: var(--font-size-sm);
 }
 
+/* «Выход» — <button>, а не ссылка, поэтому в список выше он не попадает и
+   получает font-size-base из правила для кнопок. Уравниваем с соседями. */
+html[data-ui-typography="1"] .shell .topbar-right .topbar-logout-form button {
+  font-size: var(--font-size-sm);
+}
+
 html[data-ui-typography="1"] .shell :is(.admin-card-title, .sidebar .brand h1, .sidebar .brand h2,
   .welcome-hero-title, .book-detail-shell h1) {
   font-size: var(--font-size-lg);

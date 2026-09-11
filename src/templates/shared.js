@@ -893,8 +893,9 @@ export function renderBookGrid(items = [], { isAuthenticated = false, lazyDetail
   const effectiveBatch = batchSelect && !hideDownloads;
   const canDl = canDownloadInUi(user);
   // Flags string encodes rendering-affecting state for cache key
-  /* a3: per-card download stays visible alongside batch checkboxes (series / outside-series). */
-  const flags = `${effectiveBatch ? '1' : '0'}${hideDownloads ? '1' : '0'}${canDl ? '1' : '0'}${seriesContext ? 's' : ''}a3`;
+  /* a4: кнопка «Скачать» убрана с карточек — всплывающий список форматов обрезался
+     у книг внизу страницы; все действия остались на странице книги. */
+  const flags = `${effectiveBatch ? '1' : '0'}${hideDownloads ? '1' : '0'}${canDl ? '1' : '0'}${seriesContext ? 's' : ''}a4`;
   const batchCb = (book) =>
     effectiveBatch
       ? `<label class="batch-select-hit" title="${escapeHtml(t('batch.selectTitle'))}"><input type="checkbox" class="batch-select-cb" ${batchSelectInputAttrs(book.id)} ${batchBookIdDataAttr(book.id)} aria-label="${escapeHtml(t('batch.selectAria'))}"></label>`
@@ -910,7 +911,6 @@ export function renderBookGrid(items = [], { isAuthenticated = false, lazyDetail
     const cacheKey = _cardCacheKey(book, `${flags}${isRead ? '1' : '0'}${book.libRate || 0}|p${progressKey}|d${Number(book.deleted) ? 1 : 0}`);
     const cached = getCachedCardHtml(cacheKey);
     if (cached) return cached;
-    const cardDl = hideDownloads ? '' : renderDownloadMenu(book, { compact: true, user });
     const seriesInfo = seriesContext
       ? (book.seriesList?.find((s) => s.name === seriesContext) || null)
       : null;
@@ -925,7 +925,6 @@ export function renderBookGrid(items = [], { isAuthenticated = false, lazyDetail
             <div class="author">${book.authors ? renderAuthorLinks(book.authorsList, { limit: 1, bookAuthors: book.authors, popoverId: `card-a-${book.id}` }) : escapeHtml(t('book.authorUnknown'))}</div>
             ${showSeries ? `<div class="card-series">${renderSeriesLinks(book.seriesList, { limit: 1, popoverId: `card-s-${book.id}`, firstAuthor: book.authorsList?.[0] || firstAuthorValue(book.authors) })}</div>` : ''}
             ${book.readProgress > 0 ? `<div class="card-read-progress"><div class="read-progress-bar" role="progressbar" aria-valuenow="${Math.round(book.readProgress)}" aria-valuemin="0" aria-valuemax="100"><div class="read-progress-fill" style="width:${Math.round(book.readProgress)}%"></div></div><span class="read-progress-label">${Math.round(book.readProgress)}%</span></div>` : ''}
-            ${cardDl ? `<div class="card-actions">${cardDl}</div>` : ''}
           </div>
         </article>`;
     setCachedCardHtml(cacheKey, html);
