@@ -77,7 +77,7 @@ import {
   hasContinueBooks
 } from '../inpx.js';
 import { getDistinctLanguages, getDistinctFormats, parseGenreList, parseHasSeries } from '../inpx.js';
-import { getOrExtractBookDetails, getStoredBookDetailsCover } from '../fb2.js';
+import { getOrExtractBookDetails, getStoredBookDetailsCover, getBookPublishInfo } from '../fb2.js';
 import {
   readFlibustaCover,
   listFlibustaIllustrationsForBook,
@@ -992,6 +992,28 @@ export function registerLibraryRoutes(app, deps) {
         html = '';
       }
       res.json({ html: html || '' });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  /**
+   * Год издания и ISBN из FB2. Отдельным запросом, потому что для flibusta-источников
+   * страница книги рендерится без открытия архива — см. getBookPublishInfo().
+   */
+  app.get('/api/books/:id/publish-info', requireBrowseAuth, async (req, res, next) => {
+    try {
+      const book = getBookById(req.params.id);
+      if (!book) {
+        return apiFail(res, 404, ApiErrorCode.BOOK_NOT_FOUND, t('book.notFound'));
+      }
+      let info = { publishYear: null, isbn: '' };
+      try {
+        info = await getBookPublishInfo(book);
+      } catch {
+        info = { publishYear: null, isbn: '' };
+      }
+      res.json({ year: info.publishYear || null, isbn: info.isbn || '' });
     } catch (error) {
       next(error);
     }

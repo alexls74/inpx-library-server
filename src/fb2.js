@@ -262,6 +262,53 @@ export async function readBookBufferForDelivery(book) {
   }
 }
 
+/**
+ * Версия схемы метаданных в book_details_cache. Увеличить, если начнём
+ * доставать из FB2 что-то ещё: строки со старой версией перечитаются лениво.
+ */
+export const BOOK_DETAILS_META_VERSION = 1;
+
+function sectionOf(xml, tag) {
+  const m = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'i'));
+  return m ? m[1] : '';
+}
+
+function firstYearIn(value) {
+  const m = String(value || '').match(/\b(1[0-9]{3}|20[0-9]{2}|2100)\b/);
+  if (!m) return null;
+  const year = Number(m[1]);
+  return year >= 1000 && year <= new Date().getFullYear() + 1 ? year : null;
+}
+
+/**
+ * Год издания и ISBN из <publish-info>. Если издательского блока нет или он
+ * неполный — год берём из <title-info><date> (дата написания/издания книги).
+ * Дата добавления в библиотеку сюда не попадает: она есть в INPX и
+ * подставляется уже в шаблоне, чтобы её можно было пометить отдельно.
+ */
+function extractPublishInfo(xml) {
+  const publish = sectionOf(xml, 'publish-info');
+
+  let year = firstYearIn(decodeXml(sectionOf(publish, 'year')));
+
+  let isbn = decodeXml(sectionOf(publish, 'isbn'))
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  // Иногда в <isbn> лежит несколько номеров или мусор вроде "ISBN 5-..., ...".
+  const isbnMatch = isbn.match(/(?:97[89][- ]?)?(?:[0-9][- ]?){9}[0-9Xx]/);
+  isbn = isbnMatch ? isbnMatch[0].replace(/\s+/g, '').trim() : '';
+
+  if (!year) {
+    const titleInfo = sectionOf(xml, 'title-info');
+    const dateTag = titleInfo.match(/<date[^>]*>([\s\S]*?)<\/date>/i);
+    const dateValue = titleInfo.match(/<date[^>]*\bvalue\s*=\s*"([^"]*)"/i);
+    year = firstYearIn(dateValue?.[1]) || firstYearIn(decodeXml(dateTag?.[1] || ''));
+  }
+
+  return { publishYear: year || null, isbn: isbn || '' };
+}
+
 async function extractBookDetails(book) {
   const xml = await readBookXml(book);
   const annotationMatch = xml.match(/<annotation[^>]*>([\s\S]*?)<\/annotation>/i);
@@ -274,7 +321,9 @@ async function extractBookDetails(book) {
   let annotation = annotationMatch ? decodeXml(annotationMatch[1]) : '';
   if (annotation.includes('\uFFFD')) annotation = '';
 
-  return { title, annotation, cover };
+  const { publishYear, isbn } = extractPublishInfo(xml);
+
+  return { title, annotation, cover, publishYear, isbn };
 }
 
 /**
@@ -308,7 +357,8 @@ function getCachedBookDetails(bookId) {
   if (!_stmtGetCachedDetails) {
     _stmtGetCachedDetails = db.prepare(`
       SELECT title, annotation, annotation_is_html AS annotationIsHtml,
-             cover_content_type AS contentType, cover_data AS data
+             cover_content_type AS contentType, cover_data AS data,
+             publish_year AS publishYear, isbn, meta_version AS metaVersion
       FROM book_details_cache
       WHERE book_id = ?
     `);
@@ -323,6 +373,10 @@ function getCachedBookDetails(bookId) {
     title: row.title || '',
     annotation: row.annotation || '',
     annotationIsHtml: Boolean(row.annotationIsHtml),
+    publishYear: row.publishYear || null,
+    isbn: row.isbn || '',
+    metaVersion: Number(row.metaVersion) || 0,
+    metaResolved: (Number(row.metaVersion) || 0) >= BOOK_DETAILS_META_VERSION,
     cover: row.data ? { contentType: row.contentType, data: row.data } : null
   };
 }
@@ -359,14 +413,18 @@ function saveCachedBookDetails(bookId, details) {
   if (!_stmtSaveCachedDetails) {
     _stmtSaveCachedDetails = db.prepare(`
       INSERT INTO book_details_cache (
-        book_id, title, annotation, annotation_is_html, cover_content_type, cover_data, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        book_id, title, annotation, annotation_is_html, cover_content_type, cover_data,
+        publish_year, isbn, meta_version, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(book_id) DO UPDATE SET
         title = excluded.title,
         annotation = excluded.annotation,
         annotation_is_html = excluded.annotation_is_html,
         cover_content_type = excluded.cover_content_type,
         cover_data = excluded.cover_data,
+        publish_year = excluded.publish_year,
+        isbn = excluded.isbn,
+        meta_version = excluded.meta_version,
         updated_at = CURRENT_TIMESTAMP
     `);
   }
@@ -376,8 +434,57 @@ function saveCachedBookDetails(bookId, details) {
     details.annotation || '',
     annHtml,
     details.cover?.contentType || null,
-    details.cover?.data || null
+    details.cover?.data || null,
+    details.publishYear || null,
+    details.isbn || '',
+    // Отметку ставим только если архив действительно разобрали. Для flibusta-книг
+    // при SSR архив не открывается — там остаётся 0, и метаданные дочитываются
+    // лениво через /api/books/:id/publish-info.
+    details.metaResolved ? BOOK_DETAILS_META_VERSION : 0
   );
+}
+
+let _stmtSavePublishMeta = null;
+
+/**
+ * Ленивое дочитывание издательских данных для /api/books/:id/publish-info.
+ *
+ * Нужно для flibusta-источников: при отрисовке страницы книги архив там намеренно
+ * не открывается (иначе клик по результату поиска ждёт распаковку fb2.zip), поэтому
+ * год и ISBN добираются отдельным запросом уже после загрузки страницы. Результат
+ * — включая «в файле ничего нет» — пишется в кэш, так что повторно архив не читается.
+ */
+export async function getBookPublishInfo(book) {
+  if (!book?.id) return { publishYear: null, isbn: '' };
+
+  const cached = getCachedBookDetails(book.id);
+  if (cached?.metaResolved) {
+    return { publishYear: cached.publishYear || null, isbn: cached.isbn || '' };
+  }
+
+  const extracted = await extractBookDetails(book);
+  const publishYear = extracted.publishYear || null;
+  const isbn = extracted.isbn || '';
+
+  try {
+    if (!_stmtSavePublishMeta) {
+      _stmtSavePublishMeta = db.prepare(`
+        UPDATE book_details_cache
+        SET publish_year = ?, isbn = ?, meta_version = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE book_id = ?
+      `);
+    }
+    const res = _stmtSavePublishMeta.run(publishYear, isbn, BOOK_DETAILS_META_VERSION, book.id);
+    if (!res.changes) {
+      // Строки кэша ещё нет — пишем её целиком, обложку для flibusta не храним.
+      const persist = { ...extracted, metaResolved: true };
+      saveCachedBookDetails(book.id, bookHasFlibustaSidecar(book) ? { ...persist, cover: null } : persist);
+    }
+  } catch {
+    /* кэш не критичен — данные всё равно вернём */
+  }
+
+  return { publishYear, isbn };
 }
 
 function bookHasFlibustaSidecar(book) {
@@ -389,7 +496,10 @@ const FAILED_EXTRACT_TTL_MS = 600_000; // 10 минут: при постоянн
 
 export async function getOrExtractBookDetails(book, { skipCoverAugment = false } = {}) {
   const cached = getCachedBookDetails(book.id);
-  if (cached) {
+  // Строка из кэша, записанная до появления publish_year/isbn: аннотацию и обложку
+  // из неё оставляем, но архив перечитываем один раз, чтобы добрать метаданные.
+  const staleCached = cached && cached.metaVersion < BOOK_DETAILS_META_VERSION ? cached : null;
+  if (cached && !staleCached) {
     if (!cached.cover && !book.archiveName) {
       const nearCover = findNearFileCover(book);
       if (nearCover) return { ...cached, cover: nearCover };
@@ -406,12 +516,17 @@ export async function getOrExtractBookDetails(book, { skipCoverAugment = false }
     return failEntry.details;
   }
 
-  let details = {
-    title: book.title || '',
-    annotation: '',
-    annotationIsHtml: false,
-    cover: null
-  };
+  let details = staleCached
+    ? { ...staleCached, publishYear: null, isbn: '', metaResolved: false }
+    : {
+        title: book.title || '',
+        annotation: '',
+        annotationIsHtml: false,
+        publishYear: null,
+        isbn: '',
+        metaResolved: false,
+        cover: null
+      };
   let extractFailed = false;
 
   /*
@@ -448,7 +563,8 @@ export async function getOrExtractBookDetails(book, { skipCoverAugment = false }
   const flibustaSsrSkipArchive = skipCoverAugment && bookHasFlibustaSidecar(book);
   const needArchiveExtract =
     !flibustaSsrSkipArchive &&
-    (!String(details.annotation || '').trim() ||
+    (Boolean(staleCached) ||
+      !String(details.annotation || '').trim() ||
       (!skipCoverAugment && !details.cover?.data?.length));
 
   if (needArchiveExtract) {
@@ -462,10 +578,17 @@ export async function getOrExtractBookDetails(book, { skipCoverAugment = false }
       if (!details.cover?.data?.length && extracted.cover?.data?.length) {
         details.cover = extracted.cover;
       }
+      details.publishYear = extracted.publishYear || null;
+      details.isbn = extracted.isbn || '';
+      details.metaResolved = true;
     } catch {
       extractFailed = true;
     }
   }
+
+  // Архив временно недоступен, а старый кэш есть — отдаём его и не затираем
+  // запись: метаданные доберём при следующем открытии книги.
+  if (extractFailed && staleCached) return staleCached;
 
   if (details.cover && !details.cover.data?.length) details.cover = null;
 

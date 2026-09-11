@@ -18,7 +18,7 @@ import {
   bookPagePath, readPagePath, apiBookPath, liteBookPagePath, liteReadPagePath,
   t, tp, getLocale, plural, countLabel, formatLocaleInt,
   formatLocaleDateLong, serializeClientI18n,
-  formatAuthorLabel, formatLanguageLabel,
+  formatAuthorLabel, formatFileSize,
   formatGenreLabel, parseGenreCodes
 } from './shared.js';
 import { pickHomeWelcomeQuote } from '../home-welcome-quotes.js';
@@ -661,13 +661,40 @@ export function renderBook({
     : '';
   const seriesList = book.seriesList || [];
   const seriesAuthorParam = primaryAuthor ? `?author=${encodeURIComponent(primaryAuthor)}` : '';
-  const seriesSummaryHtml = seriesList.length
-    ? seriesList.map((s) => `<a href="/facet/series/${encodeURIComponent(s.name)}${seriesAuthorParam}">${escapeHtml(s.displayName || s.name)}${s.seriesNo ? ` #${escapeHtml(s.seriesNo)}` : ''}</a>`).join(', ')
-    : '';
   const primarySeries = seriesList[0] || null;
+
+  // Год: сначала издательские данные из FB2, иначе — год из даты добавления в INPX
+  // (помечаем подсказкой, чтобы его не приняли за год издания).
+  const publishYear = Number(details?.publishYear) || null;
+  const indexYear = publishYear
+    ? null
+    : Number(String(book.date || '').match(/\b(1[0-9]{3}|20[0-9]{2})\b/)?.[1]) || null;
+  const yearSummaryHtml = publishYear
+    ? `<span data-publish-year title="${escapeHtml(t('book.yearPublishedHint'))}">${escapeHtml(String(publishYear))}</span>`
+    : indexYear
+      ? `<span data-publish-year data-publish-year-fallback="1" title="${escapeHtml(t('book.yearAddedHint'))}">${escapeHtml(String(indexYear))}</span>`
+      : '';
+
+  const isbnSummaryHtml = details?.isbn
+    ? `<span data-publish-isbn>ISBN&nbsp;${escapeHtml(String(details.isbn))}</span>`
+    : '';
+
+  // Архив ещё не разбирали (flibusta-источники) — год и ISBN дочитает app.js.
+  const metaPending = !details?.metaResolved;
+  const summaryMountAttrs = metaPending
+    ? ` data-publish-info-mount data-publish-info-for="${encodeURIComponent(String(book.id))}"`
+      + ` data-year-published-hint="${escapeHtml(t('book.yearPublishedHint'))}"`
+    : '';
+
+  const fileSizeText = formatFileSize(book.size);
+  const fileSizeSummaryHtml = fileSizeText
+    ? `<span title="${escapeHtml(t('book.fileSizeHint'))}">${escapeHtml(String(book.ext || 'fb2').toUpperCase())}, ${escapeHtml(fileSizeText)}</span>`
+    : '';
+
   const summaryBits = [
-    seriesSummaryHtml,
-    (book.lang || 'unknown') ? `<a href="/facet/languages/${encodeURIComponent(book.lang || 'unknown')}">${escapeHtml(formatLanguageLabel(book.lang || 'unknown'))}</a>` : '',
+    yearSummaryHtml,
+    isbnSummaryHtml,
+    fileSizeSummaryHtml,
     genreSummaryHtml
   ].filter(Boolean);
   const parentLibraryHref = primarySeries ? `/facet/series/${encodeURIComponent(primarySeries.name)}${seriesAuthorParam}` : primaryAuthor ? `/facet/authors/${encodeURIComponent(primaryAuthor)}` : '/library/recent';
@@ -702,7 +729,7 @@ export function renderBook({
           <h2 class="book-detail-title">${escapeHtml(book.title)}${Number(book.deleted) ? ` <span class="deleted-badge deleted-badge--inline" title="${escapeHtml(t('book.deletedHint'))}">${escapeHtml(t('book.deletedBadge'))}</span>` : ''}</h2>
           ${Number(book.deleted) ? `<p class="muted book-deleted-note">${escapeHtml(t('book.deletedHint'))}</p>` : ''}
           <div class="author">${book.authors ? renderAuthorLinks(book.authorsList, { limit: 3, bookAuthors: book.authors, inlineExpand: true }) : escapeHtml(t('book.authorUnknown'))}</div>
-          ${summaryBits.length ? `<div class="book-detail-summary">${summaryBits.join('<span class="book-detail-sep">·</span>')}</div>` : ''}
+          ${summaryBits.length || metaPending ? `<div class="book-detail-summary"${summaryMountAttrs}>${summaryBits.join('<span class="book-detail-sep">·</span>')}</div>` : ''}
           ${
             details.annotationIsHtml && String(details.annotation || '').trim()
               ? `<div class="book-detail-annotation book-detail-annotation--html">${sanitizeHtml(details.annotation)}</div>`

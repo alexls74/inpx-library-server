@@ -30,6 +30,26 @@ import { balanceHtmlFragment, stripFlibustaMediaPlaceholders } from '../html-san
 
 export { t, tp, getLocale, plural, countLabel, formatLocaleInt, formatLocaleDateShort, formatLocaleDateTimeShort, formatLocaleDateLong, serializeClientI18n };
 export { formatAuthorLabel, formatGenreLabel, formatLanguageLabel, parseGenreCodes };
+
+/**
+ * Размер файла для карточки книги: 755 KB / 3.6 MB.
+ * До 1 MB — целые килобайты, дальше — один знак после запятой.
+ */
+export function formatFileSize(bytes) {
+  const n = Number(bytes);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  const loc = getLocale();
+  if (n < 1024) return `${n.toLocaleString(loc)} ${t('common.unitB')}`;
+  if (n < 1024 * 1024) {
+    return `${Math.round(n / 1024).toLocaleString(loc)} ${t('common.unitKB')}`;
+  }
+  if (n < 1024 * 1024 * 1024) {
+    const mb = n / (1024 * 1024);
+    return `${mb.toLocaleString(loc, { maximumFractionDigits: 1, minimumFractionDigits: 1 })} ${t('common.unitMB')}`;
+  }
+  const gb = n / (1024 * 1024 * 1024);
+  return `${gb.toLocaleString(loc, { maximumFractionDigits: 1, minimumFractionDigits: 1 })} ${t('common.unitGB')}`;
+}
 export { getAvailableDownloadFormats, FORMAT_LABELS };
 export { bookPagePath, readPagePath, apiBookPath, downloadBookPath, liteBookPagePath, liteReadPagePath };
 

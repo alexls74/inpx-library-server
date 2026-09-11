@@ -488,6 +488,73 @@ function bumpProfileReaderNotesTotal(delta) {
   syncProfilePageCounters();
 }
 
+function makeSummarySep() {
+  const sep = document.createElement('span');
+  sep.className = 'book-detail-sep';
+  sep.textContent = '\u00b7';
+  return sep;
+}
+
+/** Вставить элемент в строку сводки после refEl (или в начало), добив разделители. */
+function insertSummaryBit(mount, el, refEl) {
+  if (refEl) {
+    const hadNext = Boolean(refEl.nextSibling);
+    refEl.after(el);
+    el.before(makeSummarySep());
+    if (hadNext) el.after(makeSummarySep());
+    return;
+  }
+  const hadFirst = Boolean(mount.firstChild);
+  mount.prepend(el);
+  if (hadFirst) el.after(makeSummarySep());
+}
+
+/**
+ * Год издания и ISBN для flibusta-библиотек: страница отдаётся без них
+ * (архив при рендере не открывается), значения дочитываются отдельным запросом.
+ */
+async function loadBookPagePublishInfo() {
+  const mount = document.querySelector('[data-publish-info-mount]');
+  if (!mount) return;
+  const id = mount.dataset.publishInfoFor
+    ? decodeURIComponent(mount.dataset.publishInfoFor).replace(/\uFFFD/g, '\0')
+    : null;
+  if (!id) return;
+  try {
+    const r = await fetch(`${apiBookPath(id, 'publish-info')}`, { credentials: 'same-origin' });
+    if (!r.ok) return;
+    const data = await r.json();
+    const year = Number(data?.year) || null;
+    const isbn = typeof data?.isbn === 'string' ? data.isbn.trim() : '';
+
+    if (year) {
+      const existing = mount.querySelector('[data-publish-year]');
+      if (existing) {
+        existing.textContent = String(year);
+        existing.removeAttribute('data-publish-year-fallback');
+        existing.title = mount.dataset.yearPublishedHint || '';
+      } else {
+        const el = document.createElement('span');
+        el.setAttribute('data-publish-year', '');
+        el.title = mount.dataset.yearPublishedHint || '';
+        el.textContent = String(year);
+        insertSummaryBit(mount, el, null);
+      }
+    }
+
+    if (isbn && !mount.querySelector('[data-publish-isbn]')) {
+      const el = document.createElement('span');
+      el.setAttribute('data-publish-isbn', '');
+      el.textContent = `ISBN\u00a0${isbn}`;
+      insertSummaryBit(mount, el, mount.querySelector('[data-publish-year]'));
+    }
+  } catch (e) {
+    console.error(e);
+  } finally {
+    mount.removeAttribute('data-publish-info-mount');
+  }
+}
+
 async function loadBookPageReview() {
   const mount = document.querySelector('[data-book-review-mount]');
   if (!mount) return;
@@ -6654,6 +6721,7 @@ attachDownloadMenus();
 attachCoverErrorFallback(document);
 loadCardDetails();
 loadBookPageReview();
+loadBookPagePublishInfo();
 attachBookmarkActions();
 attachReadBookActions();
 

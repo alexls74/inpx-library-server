@@ -347,6 +347,18 @@ function ensureBooksSchema() {
   if (!detailsNames.has('annotation_is_html')) {
     db.exec(`ALTER TABLE book_details_cache ADD COLUMN annotation_is_html INTEGER NOT NULL DEFAULT 0`);
   }
+  // Издательские данные из FB2 (publish-info): год и ISBN для карточки книги.
+  if (!detailsNames.has('publish_year')) {
+    db.exec(`ALTER TABLE book_details_cache ADD COLUMN publish_year INTEGER`);
+  }
+  if (!detailsNames.has('isbn')) {
+    db.exec(`ALTER TABLE book_details_cache ADD COLUMN isbn TEXT`);
+  }
+  // meta_version = 0 у строк, закэшированных до появления publish_year/isbn:
+  // такие записи перечитываются из архива при первом открытии книги.
+  if (!detailsNames.has('meta_version')) {
+    db.exec(`ALTER TABLE book_details_cache ADD COLUMN meta_version INTEGER NOT NULL DEFAULT 0`);
+  }
 
   const backfillManagedColumns = [
     'title_sort',
@@ -1449,6 +1461,9 @@ WHERE rp.progress >= 99
       annotation TEXT,
       cover_content_type TEXT,
       cover_data BLOB,
+      publish_year INTEGER,
+      isbn TEXT,
+      meta_version INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
     );
