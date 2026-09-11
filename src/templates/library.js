@@ -688,7 +688,7 @@ export function renderBook({
 
   const fileSizeText = formatFileSize(book.size);
   const fileSizeSummaryHtml = fileSizeText
-    ? `<span title="${escapeHtml(t('book.fileSizeHint'))}">${escapeHtml(String(book.ext || 'fb2').toUpperCase())}, ${escapeHtml(fileSizeText)}</span>`
+    ? `<span title="${escapeHtml(t('book.fileSizeHint'))}">${escapeHtml(String(book.ext || 'fb2').toUpperCase())} ${escapeHtml(fileSizeText)}</span>`
     : '';
 
   const summaryBits = [

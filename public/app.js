@@ -498,10 +498,11 @@ function makeSummarySep() {
 /** Вставить элемент в строку сводки после refEl (или в начало), добив разделители. */
 function insertSummaryBit(mount, el, refEl) {
   if (refEl) {
-    const hadNext = Boolean(refEl.nextSibling);
+    // refEl.after(el) вклинивает элемент ПЕРЕД уже существующим разделителем,
+    // который шёл за refEl, — тот автоматически оказывается справа от el.
+    // Поэтому добавляем ровно один разделитель, слева.
     refEl.after(el);
     el.before(makeSummarySep());
-    if (hadNext) el.after(makeSummarySep());
     return;
   }
   const hadFirst = Boolean(mount.firstChild);
@@ -2837,17 +2838,41 @@ async function pollAdminEventsPage() {
   window.addEventListener('beforeunload', () => stream.close(), { once: true });
 }
 
+/** Вернуть кнопку поиска в исходный вид (возврат «назад» из bfcache). */
+function resetLoadingButtons() {
+  document.querySelectorAll('button[data-loading="1"]').forEach((btn) => {
+    btn.innerHTML = btn.dataset.loadingLabel || '';
+    btn.classList.remove('is-loading');
+    btn.removeAttribute('aria-disabled');
+    btn.removeAttribute('data-loading');
+    btn.style.minWidth = '';
+    const form = btn.closest('form');
+    if (form) form.removeAttribute('aria-busy');
+  });
+}
+
 function attachCatalogNavLoading() {
   document.querySelectorAll('form[data-catalog-loading]').forEach((form) => {
     form.addEventListener('submit', () => {
       form.setAttribute('aria-busy', 'true');
       const btn = form.querySelector('button[type="submit"]');
-      if (btn) {
-        btn.disabled = true;
-        btn.setAttribute('aria-label', uiT('app.catalogSearching'));
-      }
+      if (!btn || btn.dataset.loading === '1') return;
+      // Не гасим кнопку через disabled: погасшая кнопка читается как «сломалось».
+      // Вместо этого спиннер + запрет повторного клика, ширину фиксируем,
+      // чтобы топбар не дёргался.
+      btn.dataset.loadingLabel = btn.innerHTML;
+      btn.dataset.loading = '1';
+      btn.style.minWidth = `${btn.offsetWidth}px`;
+      btn.classList.add('is-loading');
+      btn.setAttribute('aria-disabled', 'true');
+      btn.setAttribute('aria-label', uiT('app.catalogSearching'));
+      btn.innerHTML = '';
+      const spinner = document.createElement('span');
+      spinner.className = 'btn-spinner';
+      btn.appendChild(spinner);
     });
   });
+  window.addEventListener('pageshow', resetLoadingButtons);
 }
 
 const SEARCH_HISTORY_KEY = 'inpx-search-history';

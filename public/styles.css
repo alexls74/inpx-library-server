@@ -1583,7 +1583,8 @@ form.is-dirty button[type="submit"]::after {
   display: none;
 }
 
-.topbar-right a {
+.topbar-right a,
+.topbar-right .topbar-logout-form button {
   font-size: 12px;
   padding: 5px 10px;
 }
@@ -6437,8 +6438,14 @@ body:has(.bottom-nav) .batch-fab {
 }
 
 .book-detail-sep {
-  margin: 0 8px;
-  opacity: 0.65;
+  margin: 0 5px;
+  opacity: 0.5;
+}
+
+/* Год издания — смысловой якорь строки, выделяем его из общего muted-текста. */
+.book-detail-summary [data-publish-year] {
+  font-weight: 650;
+  color: var(--text);
 }
 
 .book-detail-links {
@@ -6996,6 +7003,17 @@ html[data-theme="light"] .alert-info {
 
 
 /* Inline button spinner */
+/* Кнопка в состоянии ожидания: спиннер вместо подписи, повторный клик заблокирован. */
+.button.is-loading,
+button.is-loading {
+  pointer-events: none;
+}
+
+.button.is-loading .btn-spinner:only-child,
+button.is-loading .btn-spinner:only-child {
+  margin-right: 0;
+}
+
 .btn-spinner {
   display: inline-block;
   width: 14px;
