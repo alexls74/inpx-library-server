@@ -9732,7 +9732,9 @@ html[data-ui-typography="1"] .shell .sidenav-links {
   padding: var(--space-sm) var(--space-sm);
 }
 
-html[data-ui-typography="1"] .shell .sidenav a {
+/* Контейнер меню в разметке называется .sidenav-links; селектор .sidenav a
+   не совпадал ни с чем, поэтому пункты не масштабировались вместе с остальным. */
+html[data-ui-typography="1"] .shell .sidenav-links a {
   padding: var(--space-sm) var(--space-md);
   font-size: var(--font-size-base);
 }
