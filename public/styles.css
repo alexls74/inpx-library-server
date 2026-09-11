@@ -6442,10 +6442,9 @@ body:has(.bottom-nav) .batch-fab {
   opacity: 0.5;
 }
 
-/* Год издания — смысловой якорь строки, выделяем его из общего muted-текста. */
+/* Год издания выделяем только начертанием — цвет как у остальной строки. */
 .book-detail-summary [data-publish-year] {
   font-weight: 650;
-  color: var(--text);
 }
 
 .book-detail-links {
