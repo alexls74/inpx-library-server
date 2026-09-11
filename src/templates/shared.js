@@ -1540,15 +1540,9 @@ export function pageShell({ title, content, user, query = '', field = 'all', sta
     .spinner{display:block;width:36px;height:36px;border:4px solid rgba(255,255,255,.15);border-top-color:var(--accent-hover,#a1671b);border-radius:50%;animation:spin .7s linear infinite;}
     html[data-theme="light"] .spinner{border-color:rgba(0,0,0,.12);border-top-color:var(--accent-hover,#a1671b);}
     @keyframes spin{to{transform:rotate(360deg);}}
-    .nav-progress{position:fixed;top:0;left:0;height:4px;width:0;background-color:var(--accent-hover,#a1671b);background-image:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.55) 50%,transparent 100%);background-size:140px 100%;background-repeat:repeat-x;z-index:99999;opacity:0;pointer-events:none;transition:opacity .15s;}
-    .nav-progress.active{opacity:1;animation:nav-grow 12s cubic-bezier(.08,.4,.2,1) forwards,nav-shimmer 1.1s linear infinite;}
-    @keyframes nav-grow{0%{width:0}15%{width:35%}40%{width:65%}65%{width:82%}100%{width:97%}}
-    @keyframes nav-shimmer{0%{background-position:-140px 0}100%{background-position:140px 0}}
   </style>
 </head>
 <body data-download-allowed="${canDownloadInUi(user) ? '1' : '0'}" data-read-allowed="${canReadInUi(user) ? '1' : '0'}" data-batch-zip-max="${BATCH_ZIP_MAX}">
-  <div class="nav-progress" id="nav-progress"></div>
-  <script>!function(){var b=document.getElementById('nav-progress');if(!b)return;function done(){b.classList.remove('active')}done();window.addEventListener('pageshow',done);window.addEventListener('popstate',done);document.addEventListener('click',function(e){var a=e.target.closest('a[href]');if(!a)return;var h=a.getAttribute('href');if(!h||h.charAt(0)==='#'||a.target==='_blank'||e.ctrlKey||e.metaKey||e.shiftKey)return;b.classList.add('active')});document.addEventListener('submit',function(){b.classList.add('active')})}()</script>
   <script type="application/json" id="ui-i18n-json">${serializeClientI18n()}</script>
   ${readBookIds && readBookIds.size ? `<script type="application/json" id="ui-read-ids">${JSON.stringify([...readBookIds])}</script>` : ''}
   <a class="skip-to-content" href="#main-content">${escapeHtml(t('skipToContent'))}</a>

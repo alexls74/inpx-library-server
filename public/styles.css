@@ -10005,8 +10005,7 @@ html[data-eink="1"] *::after {
   -webkit-backdrop-filter: none !important;
 }
 
-html[data-eink="1"] .welcome-hero-banner,
-html[data-eink="1"] .nav-progress {
+html[data-eink="1"] .welcome-hero-banner {
   display: none !important;
 }
 
